@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Request, Response } from "express";
 import { pool } from "../db/pool";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 import { validateBody } from "../middleware/validate.js";
@@ -9,7 +10,7 @@ import { authLimiter } from "../middleware/rateLimiters.js";
 
 export const authRouter = Router();
 
-authRouter.post("/signup", authLimiter, validateBody(signupSchema), async (req, res) => {
+authRouter.post("/signup", authLimiter, validateBody(signupSchema), async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
@@ -27,7 +28,7 @@ authRouter.post("/signup", authLimiter, validateBody(signupSchema), async (req, 
   return res.status(201).json({ user: result.rows[0] });
 });
 
-authRouter.post("/login", authLimiter, validateBody(loginSchema), async (req, res) => {
+authRouter.post("/login", authLimiter, validateBody(loginSchema), async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   const result = await pool.query(
