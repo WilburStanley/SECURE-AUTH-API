@@ -1,8 +1,7 @@
 import "dotenv/config";
-import express from "express";
 import { pool } from "./db/pool.js";
+import { app } from "./app.js";
 
-const app = express();
 const port = Number(process.env.PORT) || 3000;
 
 const start = async () => {
