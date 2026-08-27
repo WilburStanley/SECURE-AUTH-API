@@ -13,3 +13,7 @@ export interface AccessTokenPayload {
 export const signAccessToken = (payload: AccessTokenPayload): string => {
   return jwt.sign(payload, ACCESS_SECRET, { expiresIn: "15m" });
 };
+
+export const verifyAccessToken = (token: string): AccessTokenPayload => {
+  return jwt.verify(token, ACCESS_SECRET) as AccessTokenPayload;
+};
