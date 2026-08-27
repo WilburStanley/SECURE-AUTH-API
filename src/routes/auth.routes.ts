@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { pool } from "../db/pool";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 import { validateBody } from "../middleware/validate.js";
-import { signupSchema, loginSchema, logoutSchema } from "../schemas/auth.schema.js";
+import { signupSchema, loginSchema, logoutSchema, refreshSchema } from "../schemas/auth.schema.js";
 import { remainingBackoffMs } from "../utils/backoff.js";
 import { signAccessToken, generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
 import { authLimiter } from "../middleware/rateLimiters.js";
@@ -88,4 +88,26 @@ authRouter.post("/logout", requireAuth, validateBody(logoutSchema), async (req: 
   );
 
   return res.status(204).send();
+});
+
+authRouter.post("/refresh", validateBody(refreshSchema), async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  const tokenHash = hashRefreshToken(refreshToken);
+
+  const result = await pool.query(
+    `SELECT refresh_tokens.user_id, refresh_tokens.expires_at, refresh_tokens.revoked, users.email
+     FROM refresh_tokens
+     JOIN users ON users.id = refresh_tokens.user_id
+     WHERE refresh_tokens.token_hash = $1`,
+    [tokenHash],
+  );
+  const record = result.rows[0];
+
+  const isValid = record && !record.revoked && new Date(record.expires_at) > new Date();
+  if (!isValid) {
+    return res.status(401).json({ error: "Invalid or expired refresh token" });
+  }
+
+  const accessToken = signAccessToken({ sub: record.user_id, email: record.email });
+  return res.status(200).json({ accessToken });
 });
