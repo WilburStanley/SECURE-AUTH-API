@@ -12,3 +12,7 @@ export const loginSchema = z.strictObject({
   email: z.string().trim().toLowerCase().email("Must be a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
+
+export const logoutSchema = z.strictObject({
+  refreshToken: z.string().min(1, "refreshToken is required"),
+});

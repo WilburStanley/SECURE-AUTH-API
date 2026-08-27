@@ -9,3 +9,7 @@ protectedRouter.use(requireAuth);
 protectedRouter.get("/profile", (_req: Request, res: Response) => {
   res.status(200).json({ message: "You reached a protected route." });
 });
+
+protectedRouter.get("/dashboard", (req, res) => {
+  res.status(200).json({ message: `Welcome back, ${req.user!.email}.` });
+});

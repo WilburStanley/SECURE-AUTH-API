@@ -3,10 +3,11 @@ import type { Request, Response } from "express";
 import { pool } from "../db/pool";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 import { validateBody } from "../middleware/validate.js";
-import { signupSchema, loginSchema } from "../schemas/auth.schema.js";
+import { signupSchema, loginSchema, logoutSchema } from "../schemas/auth.schema.js";
 import { remainingBackoffMs } from "../utils/backoff.js";
-import { signAccessToken } from "../utils/tokens.js";
+import { signAccessToken, generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
 import { authLimiter } from "../middleware/rateLimiters.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 export const authRouter = Router();
 
@@ -67,5 +68,24 @@ authRouter.post("/login", authLimiter, validateBody(loginSchema), async (req: Re
   );
 
   const accessToken = signAccessToken({ sub: user.id, email: user.email });
-  return res.status(200).json({ accessToken });
+  const { token: refreshToken, expiresAt } = generateRefreshToken();
+
+  await pool.query(
+    "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+    [user.id, hashRefreshToken(refreshToken), expiresAt],
+  );
+
+  return res.status(200).json({ accessToken, refreshToken });
+});
+
+authRouter.post("/logout", requireAuth, validateBody(logoutSchema), async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  const tokenHash = hashRefreshToken(refreshToken);
+
+  await pool.query(
+    "UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1 AND user_id = $2",
+    [tokenHash, req.user!.sub],
+  );
+
+  return res.status(204).send();
 });
